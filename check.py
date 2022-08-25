@@ -8,31 +8,32 @@ logger.addHandler(console)
 
 
 def main():
-    pip_list = subprocess.run(
-        ["pip", "list", "--format=freeze"], capture_output=True)
-    stdout_lines: list[str] = pip_list.stdout.decode().split("\n")
-    std_err: str = pip_list.stderr.decode()
-    if std_err:
-        logger.error("%s", std_err)
+    try:
+        pip_list = subprocess.check_output(
+            ["pip", "list", "--format=freeze"])
+    except Exception as e:
+        logger.error("%s", e)
         return
+    stdout_lines = pip_list.decode().split("\n")
     if not stdout_lines:
         logger.error("`pip list --format=freeze` output is empty")
         return
 
-    installed_packages: set[str] = set()
+    installed_packages = set()
     for line in stdout_lines:
-        p: list[str] = line.split("==")
+        p = line.split("==")
         if p and p[0].strip():
             installed_packages.add(p[0].strip())
 
     with open('malicious_packages.txt', 'r') as f:
         malicious_packages = set(x.strip() for x in f.read().splitlines())
-        detected_packages: set[str] = installed_packages.intersection(malicious_packages)
+        detected_packages = installed_packages.intersection(malicious_packages)
         if detected_packages:
             logger.warning(
-                "%d malicious pip packages from `malicious_packages.txt`"
+                "%d malicious pip package%s from `malicious_packages.txt`"
                 " detected in `pip list --format=freeze` output"
-                "\nThe packages are\n%s", len(detected_packages), sorted(detected_packages))
+                "\nThe packages are\n%s", len(detected_packages),
+                "s" if len(detected_packages) > 1 else "", sorted(detected_packages))
 
 
 if __name__ == "__main__":
